@@ -56,8 +56,7 @@
 		moved,
 
 		/** @const */
-		R_SPACE = /\s+/g,
-		R_FLOAT = /left|right|inline/,
+		RSPACE = /\s+/g,
 
 		expando = 'Sortable' + (new Date).getTime(),
 
@@ -68,7 +67,7 @@
 		$ = win.jQuery || win.Zepto,
 		Polymer = win.Polymer,
 
-		captureMode = false,
+		captureMode = {capture: false, passive: false},
 
 		supportDraggable = !!('draggable' in document.createElement('div')),
 		supportCssPointerEvents = (function (el) {
@@ -86,7 +85,6 @@
 		abs = Math.abs,
 		min = Math.min,
 
-		savedInputChecked = [],
 		touchDragOverListeners = [],
 
 		_autoScroll = _throttle(function (/**Event*/evt, /**Object*/options, /**HTMLElement*/rootEl) {
@@ -215,6 +213,7 @@
 	;
 
 
+
 	/**
 	 * @class  Sortable
 	 * @param  {HTMLElement}  el
@@ -231,6 +230,7 @@
 
 		// Export instance
 		el[expando] = this;
+
 
 		// Default options
 		var defaults = {
@@ -314,9 +314,6 @@
 				filter = options.filter,
 				startIndex;
 
-			_saveInputCheckedState(el);
-
-
 			// Don't trigger start event when an element is been dragged, otherwise the evt.oldindex always wrong when set option.group.
 			if (dragEl) {
 				return;
@@ -344,7 +341,7 @@
 			// Check filter
 			if (typeof filter === 'function') {
 				if (filter.call(this, evt, target, this)) {
-					_dispatchEvent(_this, originalTarget, 'filter', target, el, startIndex);
+					_dispatchEvent(_this, originalTarget, 'filter', target, el, el, startIndex);
 					preventOnFilter && evt.preventDefault();
 					return; // cancel dnd
 				}
@@ -354,7 +351,7 @@
 					criteria = _closest(originalTarget, criteria.trim(), el);
 
 					if (criteria) {
-						_dispatchEvent(_this, criteria, 'filter', target, el, startIndex);
+						_dispatchEvent(_this, criteria, 'filter', target, el, el, startIndex);
 						return true;
 					}
 				});
@@ -387,7 +384,7 @@
 				dragEl = target;
 				parentEl = dragEl.parentNode;
 				nextEl = dragEl.nextSibling;
-				lastDownEl = target;
+				lastDownEl = target
 				activeGroup = options.group;
 				oldIndex = startIndex;
 
@@ -411,7 +408,7 @@
 					_this._triggerDragStart(evt, touch);
 
 					// Drag start event
-					_dispatchEvent(_this, rootEl, 'choose', dragEl, rootEl, oldIndex);
+					_dispatchEvent(_this, rootEl, 'choose', dragEl, rootEl, rootEl, oldIndex);
 				};
 
 				// Disable "draggable"
@@ -423,7 +420,6 @@
 				_on(ownerDocument, 'touchend', _this._onDrop);
 				_on(ownerDocument, 'touchcancel', _this._onDrop);
 				_on(ownerDocument, 'pointercancel', _this._onDrop);
-				_on(ownerDocument, 'selectstart', _this);
 
 				if (options.delay) {
 					// If the user moves the pointer or let go the click or touch
@@ -441,7 +437,9 @@
 					dragStartFn();
 				}
 
-
+				if (options.forceFallback) {
+					evt.preventDefault();
+				}
 			}
 		},
 
@@ -459,7 +457,6 @@
 
 		_triggerDragStart: function (/** Event */evt, /** Touch */touch) {
 			touch = touch || (evt.pointerType == 'touch' ? evt : null);
-
 			if (touch) {
 				// Touch device support
 				tapEvt = {
@@ -502,7 +499,7 @@
 				Sortable.active = this;
 
 				// Drag start event
-				_dispatchEvent(this, rootEl, 'start', dragEl, rootEl, oldIndex);
+				_dispatchEvent(this, rootEl, 'start', dragEl, rootEl, rootEl, oldIndex);
 			} else {
 				this._nulling();
 			}
@@ -678,16 +675,11 @@
 				group = options.group,
 				activeSortable = Sortable.active,
 				isOwner = (activeGroup === group),
-				isMovingBetweenSortable = false,
 				canSort = options.sort;
 
 			if (evt.preventDefault !== void 0) {
 				evt.preventDefault();
 				!options.dragoverBubble && evt.stopPropagation();
-			}
-
-			if (dragEl.animated) {
-				return;
 			}
 
 			moved = true;
@@ -714,11 +706,7 @@
 
 				target = _closest(evt.target, options.draggable, el);
 				dragRect = dragEl.getBoundingClientRect();
-
-				if (putSortable !== this) {
-					putSortable = this;
-					isMovingBetweenSortable = true;
-				}
+				putSortable = this;
 
 				if (revert) {
 					_cloneHide(activeSortable, true);
@@ -769,14 +757,14 @@
 
 					var width = targetRect.right - targetRect.left,
 						height = targetRect.bottom - targetRect.top,
-						floating = R_FLOAT.test(lastCSS.cssFloat + lastCSS.display)
+						floating = /left|right|inline/.test(lastCSS.cssFloat + lastCSS.display)
 							|| (lastParentCSS.display == 'flex' && lastParentCSS['flex-direction'].indexOf('row') === 0),
 						isWide = (target.offsetWidth > dragEl.offsetWidth),
 						isLong = (target.offsetHeight > dragEl.offsetHeight),
 						halfway = (floating ? (evt.clientX - targetRect.left) / width : (evt.clientY - targetRect.top) / height) > 0.5,
 						nextSibling = target.nextElementSibling,
 						moveVector = _onMove(rootEl, el, dragEl, dragRect, target, targetRect, evt),
-						after = false
+						after
 					;
 
 					if (moveVector !== false) {
@@ -800,7 +788,7 @@
 							} else {
 								after = tgTop > elTop;
 							}
-						} else if (!isMovingBetweenSortable) {
+						} else {
 							after = (nextSibling !== dragEl) && !isLong || halfway && isLong;
 						}
 
@@ -860,7 +848,6 @@
 			_off(ownerDocument, 'touchend', this._onDrop);
 			_off(ownerDocument, 'pointerup', this._onDrop);
 			_off(ownerDocument, 'touchcancel', this._onDrop);
-			_off(ownerDocument, 'selectstart', this);
 		},
 
 		_onDrop: function (/**Event*/evt) {
@@ -889,11 +876,6 @@
 
 				ghostEl && ghostEl.parentNode.removeChild(ghostEl);
 
-				if (rootEl === parentEl || Sortable.active.lastPullMode !== 'clone') {
-					// Remove clone
-					cloneEl && cloneEl.parentNode.removeChild(cloneEl);
-				}
-
 				if (dragEl) {
 					if (this.nativeDraggable) {
 						_off(dragEl, 'dragend', this);
@@ -906,30 +888,37 @@
 					_toggleClass(dragEl, this.options.ghostClass, false);
 					_toggleClass(dragEl, this.options.chosenClass, false);
 
+					// Drag stop event
+					_dispatchEvent(this, rootEl, 'unchoose', dragEl, parentEl, rootEl, oldIndex);
+
 					if (rootEl !== parentEl) {
 						newIndex = _index(dragEl, options.draggable);
 
 						if (newIndex >= 0) {
+
 							// Add event
-							_dispatchEvent(null, parentEl, 'add', dragEl, rootEl, oldIndex, newIndex);
+							_dispatchEvent(null, parentEl, 'add', dragEl, parentEl, rootEl, oldIndex, newIndex);
 
 							// Remove event
-							_dispatchEvent(this, rootEl, 'remove', dragEl, rootEl, oldIndex, newIndex);
+							_dispatchEvent(this, rootEl, 'remove', dragEl, parentEl, rootEl, oldIndex, newIndex);
 
 							// drag from one list and drop into another
-							_dispatchEvent(null, parentEl, 'sort', dragEl, rootEl, oldIndex, newIndex);
-							_dispatchEvent(this, rootEl, 'sort', dragEl, rootEl, oldIndex, newIndex);
+							_dispatchEvent(null, parentEl, 'sort', dragEl, parentEl, rootEl, oldIndex, newIndex);
+							_dispatchEvent(this, rootEl, 'sort', dragEl, parentEl, rootEl, oldIndex, newIndex);
 						}
 					}
 					else {
+						// Remove clone
+						cloneEl && cloneEl.parentNode.removeChild(cloneEl);
+
 						if (dragEl.nextSibling !== nextEl) {
 							// Get the index of the dragged element within its parent
 							newIndex = _index(dragEl, options.draggable);
 
 							if (newIndex >= 0) {
 								// drag & drop within the same list
-								_dispatchEvent(this, rootEl, 'update', dragEl, rootEl, oldIndex, newIndex);
-								_dispatchEvent(this, rootEl, 'sort', dragEl, rootEl, oldIndex, newIndex);
+								_dispatchEvent(this, rootEl, 'update', dragEl, parentEl, rootEl, oldIndex, newIndex);
+								_dispatchEvent(this, rootEl, 'sort', dragEl, parentEl, rootEl, oldIndex, newIndex);
 							}
 						}
 					}
@@ -940,7 +929,7 @@
 							newIndex = oldIndex;
 						}
 
-						_dispatchEvent(this, rootEl, 'end', dragEl, rootEl, oldIndex, newIndex);
+						_dispatchEvent(this, rootEl, 'end', dragEl, parentEl, rootEl, oldIndex, newIndex);
 
 						// Save sorting
 						this.save();
@@ -976,31 +965,19 @@
 			putSortable =
 			activeGroup =
 			Sortable.active = null;
-
-			savedInputChecked.forEach(function (el) {
-				el.checked = true;
-			});
-			savedInputChecked.length = 0;
 		},
 
 		handleEvent: function (/**Event*/evt) {
-			switch (evt.type) {
-				case 'drop':
-				case 'dragend':
-					this._onDrop(evt);
-					break;
+			var type = evt.type;
 
-				case 'dragover':
-				case 'dragenter':
-					if (dragEl) {
-						this._onDragOver(evt);
-						_globalDragOver(evt);
-					}
-					break;
-
-				case 'selectstart':
-					evt.preventDefault();
-					break;
+			if (type === 'dragover' || type === 'dragenter') {
+				if (dragEl) {
+					this._onDragOver(evt);
+					_globalDragOver(evt);
+				}
+			}
+			else if (type === 'drop' || type === 'dragend') {
+				this._onDrop(evt);
 			}
 		},
 
@@ -1195,8 +1172,8 @@
 				el.classList[state ? 'add' : 'remove'](name);
 			}
 			else {
-				var className = (' ' + el.className + ' ').replace(R_SPACE, ' ').replace(' ' + name + ' ', ' ');
-				el.className = (className + (state ? ' ' + name : '')).replace(R_SPACE, ' ');
+				var className = (' ' + el.className + ' ').replace(RSPACE, ' ').replace(' ' + name + ' ', ' ');
+				el.className = (className + (state ? ' ' + name : '')).replace(RSPACE, ' ');
 			}
 		}
 	}
@@ -1245,7 +1222,7 @@
 
 
 
-	function _dispatchEvent(sortable, rootEl, name, targetEl, fromEl, startIndex, newIndex) {
+	function _dispatchEvent(sortable, rootEl, name, targetEl, toEl, fromEl, startIndex, newIndex) {
 		sortable = (sortable || rootEl[expando]);
 
 		var evt = document.createEvent('Event'),
@@ -1254,7 +1231,7 @@
 
 		evt.initEvent(name, true, true);
 
-		evt.to = rootEl;
+		evt.to = toEl || rootEl;
 		evt.from = fromEl || rootEl;
 		evt.item = targetEl || rootEl;
 		evt.clone = cloneEl;
@@ -1419,34 +1396,6 @@
 			);
 	}
 
-	function _saveInputCheckedState(root) {
-		var inputs = root.getElementsByTagName('input');
-		var idx = inputs.length;
-
-		while (idx--) {
-			var el = inputs[idx];
-			el.checked && savedInputChecked.push(el);
-		}
-	}
-
-	// Fixed #973: 
-	_on(document, 'touchmove', function (evt) {
-		if (Sortable.active) {
-			evt.preventDefault();
-		}
-	});
-
-	try {
-		window.addEventListener('test', null, Object.defineProperty({}, 'passive', {
-			get: function () {
-				captureMode = {
-					capture: false,
-					passive: false
-				};
-			}
-		}));
-	} catch (err) {}
-
 	// Export utils
 	Sortable.utils = {
 		on: _on,
@@ -1476,6 +1425,6 @@
 
 
 	// Export
-	Sortable.version = '1.5.1';
+	Sortable.version = '1.5.0-rc1';
 	return Sortable;
 });

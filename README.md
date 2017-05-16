@@ -1,5 +1,5 @@
 # Sortable
-Sortable is a <s>minimalist</s> JavaScript library for reorderable drag-and-drop lists.
+Sortable is a minimalist JavaScript library for reorderable drag-and-drop lists.
 
 Demo: http://rubaxa.github.io/Sortable/
 
@@ -128,6 +128,7 @@ var sortable = new Sortable(el, {
 	// Element is dropped into the list from another list
 	onAdd: function (/**Event*/evt) {
 		var itemEl = evt.item;  // dragged HTMLElement
+		evt.to;    // target list
 		evt.from;  // previous list
 		// + indexes from onEnd
 	},
@@ -140,12 +141,12 @@ var sortable = new Sortable(el, {
 
 	// Called by any change to the list (add / update / remove)
 	onSort: function (/**Event*/evt) {
-		// same properties as onUpdate
+		// same properties as onAdd
 	},
 
 	// Element is removed from the list into another list
 	onRemove: function (/**Event*/evt) {
-		// same properties as onUpdate
+		// same properties as onAdd
 	},
 
 	// Attempt to drag a filtered element
@@ -562,11 +563,11 @@ Link to the active instance.
 
 ```html
 <!-- CDNJS :: Sortable (https://cdnjs.com/) -->
-<script src="//cdnjs.cloudflare.com/ajax/libs/Sortable/1.5.1/Sortable.min.js"></script>
+<script src="//cdnjs.cloudflare.com/ajax/libs/Sortable/1.5.0-rc1/Sortable.min.js"></script>
 
 
 <!-- jsDelivr :: Sortable (http://www.jsdelivr.com/) -->
-<script src="//cdn.jsdelivr.net/sortable/1.5.1/Sortable.min.js"></script>
+<script src="//cdn.jsdelivr.net/sortable/1.5.0-rc1/Sortable.min.js"></script>
 
 
 <!-- jsDelivr :: Sortable :: Latest (http://www.jsdelivr.com/) -->
@@ -616,7 +617,7 @@ Please, [read this](CONTRIBUTING.md).
 
 
 ## MIT LICENSE
-Copyright 2013-2017 Lebedev Konstantin <ibnRubaXa@gmail.com>
+Copyright 2013-2016 Lebedev Konstantin <ibnRubaXa@gmail.com>
 http://rubaxa.github.io/Sortable/
 
 Permission is hereby granted, free of charge, to any person obtaining
